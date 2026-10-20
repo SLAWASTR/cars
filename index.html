@@ -813,6 +813,79 @@
     </div>
   </div>
 
+  <!-- =========================================================================
+       MODAL 5: БЫСТРОЕ МЕНЮ СПОТА ПО ЗАЖАТИЮ (QUICK ACTIONS MODAL)
+       ========================================================================= -->
+  <div id="carQuickActionsModal" class="modal-overlay" onclick="window.app.closeQuickActions()">
+    <div class="modal-sheet quick-actions-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Действия со спотом</h3>
+        <button type="button" class="modal-close-btn" onclick="window.app.closeQuickActions()">✕</button>
+      </div>
+
+      <div class="quick-car-header" id="quickCarHeader">
+        <img id="quickCarThumb" class="quick-car-thumb" src="icons/app-icon.svg" alt="Авто">
+        <div class="quick-car-info">
+          <div id="quickCarTitle" class="quick-car-title">Автомобиль</div>
+          <div id="quickCarSub" class="quick-car-sub">Характеристики спота</div>
+        </div>
+      </div>
+
+      <div class="quick-actions-list">
+        <button type="button" class="quick-action-item" onclick="window.app.openEditFromQuickActions()">
+          <span class="quick-action-icon">✏️</span>
+          <span>Редактировать спот</span>
+        </button>
+        <button type="button" class="quick-action-item" onclick="window.app.generateTradingCardFromQuickActions()">
+          <span class="quick-action-icon">🏎️</span>
+          <span>Создать GT Карточку (PNG)</span>
+        </button>
+        <button type="button" class="quick-action-item" onclick="window.app.shareTelegramFromQuickActions()">
+          <span class="quick-action-icon">✈️</span>
+          <span>Поделиться в Telegram</span>
+        </button>
+        <button type="button" class="quick-action-item" id="quickActionMapBtn" onclick="window.app.showOnMapFromQuickActions()">
+          <span class="quick-action-icon">🗺️</span>
+          <span>Показать на карте</span>
+        </button>
+        <button type="button" class="quick-action-item danger" onclick="window.app.deleteCarFromQuickActions()">
+          <span class="quick-action-icon">🗑️</span>
+          <span>Удалить автомобиль</span>
+        </button>
+        <button type="button" class="quick-action-item quick-action-cancel" onclick="window.app.closeQuickActions()">
+          <span>✕ Закрыть</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 6: РЕГИСТРАЦИЯ / ВВОД НИКА СПОТТЕРА (ONBOARDING MODAL)
+       ========================================================================= -->
+  <div id="registrationModal" class="modal-overlay">
+    <div class="modal-sheet onboarding-sheet">
+      <div class="onboarding-icon-wrap">🏎️</div>
+      <h2 class="onboarding-title">Добро пожаловать в Автотеку!</h2>
+      <p class="onboarding-desc">Укажите ваш никнейм споттера. Под этим именем будут сохраняться ваши находки и создаваться коллекционные карточки:</p>
+
+      <form class="onboarding-form" onsubmit="window.app.handleSaveRegistration(event)">
+        <div class="form-group">
+          <label class="form-label" for="regNicknameInput">Ваш никнейм / имя споттера *</label>
+          <input type="text" id="regNicknameInput" class="form-input" placeholder="Ваня или Ragazzo_15" required maxlength="32" autocomplete="nickname">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regCityInput">Ваш город (необязательно)</label>
+          <input type="text" id="regCityInput" class="form-input" placeholder="Москва, Санкт-Петербург, Сочи...">
+        </div>
+
+        <button type="submit" class="btn-primary" style="margin-top: 8px;">
+          <span>🚀</span> Начать автоспоттинг
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Notice -->
   <div id="cardexToastNotice" class="toast-notice"></div>
 

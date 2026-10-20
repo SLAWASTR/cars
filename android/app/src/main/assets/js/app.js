@@ -22,6 +22,8 @@ class CarDexApp {
     this.currentCarDetailId = null;
     this.currentViewerImage = null;
     this.currentViewerGarageId = null;
+    this.editingCarId = null;
+    this.currentQuickActionCarId = null;
 
     // Brand icons & badges
     this.brandLogos = {
@@ -81,6 +83,12 @@ class CarDexApp {
     this.setupEventListeners();
     this.renderProfile();
     this.updateStats();
+
+    // 6. Check registration on first run
+    const isRegistered = await window.carDb.getSetting('spotter_registered', false);
+    if (!isRegistered) {
+      setTimeout(() => this.openRegistrationModal(), 350);
+    }
 
     console.log(`🏎️ CarDex initialized for spotter: ${this.spotterName}`);
   }
@@ -323,10 +331,11 @@ class CarDexApp {
       container.innerHTML = `
         <div class="gallery-empty-state">
           <div class="empty-icon">🏎️</div>
-          <div class="empty-title">Споты не найдены</div>
-          <div class="empty-sub">Попробуйте изменить фильтры или добавьте первую встреченную тачку!</div>
-          <button class="btn-primary-compact" style="margin-top:12px;" onclick="window.app.openAddModal()">
-            <span>➕</span> Заспоттить авто
+          <div class="empty-title">Коллекция спотов пуста</div>
+          <div class="empty-sub">Вы еще не добавили ни одного автомобиля. Нажмите кнопку ниже, чтобы зафиксировать первый спот!</div>
+          <button type="button" class="btn-empty-add-car" onclick="window.app.openAddModal()">
+            <span class="btn-empty-icon">➕</span>
+            <span>Добавить свой автомобиль</span>
           </button>
         </div>
       `;
@@ -334,6 +343,69 @@ class CarDexApp {
     }
 
     container.innerHTML = filtered.map(car => this.renderCarCardHtml(car)).join('');
+    this.attachCardEventListeners(container);
+  }
+
+  attachCardEventListeners(container) {
+    container.querySelectorAll('.car-card').forEach(card => {
+      const carId = card.dataset.carId;
+      if (!carId) return;
+
+      let pressTimer = null;
+      let isLongPressTriggered = false;
+      let startX = 0;
+      let startY = 0;
+
+      // Mobile Touch Hold (450ms)
+      card.addEventListener('touchstart', (e) => {
+        isLongPressTriggered = false;
+        if (!e.touches || !e.touches[0]) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        pressTimer = setTimeout(() => {
+          isLongPressTriggered = true;
+          if (navigator.vibrate) {
+            try { navigator.vibrate(50); } catch(err) {}
+          }
+          this.openQuickActions(carId);
+        }, 450);
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e) => {
+        if (!e.touches || !e.touches[0]) return;
+        const diffX = Math.abs(e.touches[0].clientX - startX);
+        const diffY = Math.abs(e.touches[0].clientY - startY);
+        if (diffX > 12 || diffY > 12) {
+          clearTimeout(pressTimer);
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', () => {
+        clearTimeout(pressTimer);
+      });
+
+      card.addEventListener('touchcancel', () => {
+        clearTimeout(pressTimer);
+      });
+
+      // Desktop Context Menu (Right-click or Long-click)
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        isLongPressTriggered = true;
+        this.openQuickActions(carId);
+      });
+
+      // Click: only open details if NOT a long press
+      card.addEventListener('click', (e) => {
+        if (isLongPressTriggered) {
+          isLongPressTriggered = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        this.openDetailModal(carId);
+      });
+    });
   }
 
   renderCarCardHtml(car) {
@@ -344,7 +416,7 @@ class CarDexApp {
     const ratingStars = '★'.repeat(car.rating || 4);
 
     return `
-      <div class="car-card" onclick="window.app.openDetailModal('${car.id}')">
+      <div class="car-card" data-car-id="${car.id}">
         <div class="car-card-photo-wrap">
           <img src="${photoSrc}" class="car-card-img" loading="lazy" alt="${this.escapeHtml(car.brand)} ${this.escapeHtml(car.model)}" />
           <div class="car-card-top-badges">
@@ -705,6 +777,14 @@ class CarDexApp {
     }
   }
 
+  generateTradingCard(carId = null) {
+    return this.generateCarTradingCard(carId);
+  }
+
+  shareCarTelegram(carId = null) {
+    return this.shareCarToTelegram(carId);
+  }
+
   // Share to Telegram
   shareCarToTelegram(carId = null) {
     const targetId = carId || this.currentCarDetailId;
@@ -734,15 +814,146 @@ class CarDexApp {
     }
   }
 
-  // Delete current car
-  async deleteCurrentCar() {
-    if (!this.currentCarDetailId) return;
-    if (!confirm('Вы уверены, что хотите удалить этот автомобиль из коллекции?')) return;
+  // Delete car by ID or current
+  async deleteCar(carId = null) {
+    const targetId = carId || this.currentCarDetailId;
+    if (!targetId) return;
 
-    await window.carDb.deleteCar(this.currentCarDetailId);
+    const car = await window.carDb.getCar(targetId);
+    const carName = car ? `${car.brand} ${car.model}` : 'этот автомобиль';
+    if (!confirm(`Вы уверены, что хотите удалить ${carName} из коллекции?`)) return;
+
+    await window.carDb.deleteCar(targetId);
     this.closeDetailModal();
+    this.closeQuickActions();
     await this.loadCars();
     this.showToast('Автомобиль удален из коллекции');
+  }
+
+  async deleteCurrentCar() {
+    await this.deleteCar();
+  }
+
+  // =========================================================================
+  // Quick Actions Context Menu (On Long Press / Hold)
+  // =========================================================================
+
+  async openQuickActions(carId) {
+    const car = await window.carDb.getCar(carId);
+    if (!car) return;
+
+    this.currentQuickActionCarId = carId;
+
+    const modal = document.getElementById('carQuickActionsModal');
+    const thumbEl = document.getElementById('quickCarThumb');
+    const titleEl = document.getElementById('quickCarTitle');
+    const subEl = document.getElementById('quickCarSub');
+    const mapBtn = document.getElementById('quickActionMapBtn');
+
+    if (thumbEl) {
+      thumbEl.src = car.photoThumb || car.photo || 'icons/app-icon.svg';
+    }
+    if (titleEl) {
+      const brandLogo = this.getBrandIcon(car.brand);
+      titleEl.textContent = `${brandLogo} ${car.brand} ${car.model}`;
+    }
+    if (subEl) {
+      const parts = [];
+      if (car.generation) parts.push(`Кузов: ${car.generation}`);
+      if (car.power) parts.push(`${car.power} л.с.`);
+      if (car.year) parts.push(`${car.year} г.`);
+      subEl.textContent = parts.join(' • ') || 'Автомобиль';
+    }
+    if (mapBtn) {
+      mapBtn.style.display = (car.lat && car.lng) ? 'flex' : 'none';
+    }
+
+    if (modal) modal.classList.add('open');
+  }
+
+  closeQuickActions() {
+    const modal = document.getElementById('carQuickActionsModal');
+    if (modal) modal.classList.remove('open');
+    this.currentQuickActionCarId = null;
+  }
+
+  openEditFromQuickActions() {
+    const carId = this.currentQuickActionCarId;
+    this.closeQuickActions();
+    if (carId) this.openEditModal(carId);
+  }
+
+  generateTradingCardFromQuickActions() {
+    const carId = this.currentQuickActionCarId;
+    this.closeQuickActions();
+    if (carId) this.generateCarTradingCard(carId);
+  }
+
+  shareTelegramFromQuickActions() {
+    const carId = this.currentQuickActionCarId;
+    this.closeQuickActions();
+    if (carId) this.shareCarTelegram(carId);
+  }
+
+  showOnMapFromQuickActions() {
+    const carId = this.currentQuickActionCarId;
+    this.closeQuickActions();
+    if (!carId) return;
+    const car = this.cars.find(c => c.id === carId);
+    if (car && car.lat && car.lng) {
+      this.switchTab('map');
+      window.mapManager.focusCar(car.lat, car.lng);
+    } else {
+      this.showToast('Координаты не указаны для этого авто');
+    }
+  }
+
+  async deleteCarFromQuickActions() {
+    const carId = this.currentQuickActionCarId;
+    if (carId) {
+      await this.deleteCar(carId);
+    }
+  }
+
+  // =========================================================================
+  // Registration / Onboarding Modal
+  // =========================================================================
+
+  openRegistrationModal() {
+    const modal = document.getElementById('registrationModal');
+    const nickInp = document.getElementById('regNicknameInput');
+    const defaultNick = window.carDb ? window.carDb.getDefaultNickname() : 'Ragazzo_15';
+    if (nickInp) {
+      nickInp.value = this.spotterName || defaultNick;
+      setTimeout(() => nickInp.focus(), 250);
+    }
+    if (modal) modal.classList.add('open');
+  }
+
+  closeRegistrationModal() {
+    const modal = document.getElementById('registrationModal');
+    if (modal) modal.classList.remove('open');
+  }
+
+  async handleSaveRegistration(e) {
+    if (e) e.preventDefault();
+    const nickInp = document.getElementById('regNicknameInput');
+    const cityInp = document.getElementById('regCityInput');
+
+    const defaultNick = window.carDb ? window.carDb.getDefaultNickname() : 'Ragazzo_15';
+    const nick = (nickInp && nickInp.value.trim()) || defaultNick;
+    const city = cityInp ? cityInp.value.trim() : '';
+
+    this.profile.nickname = nick;
+    this.spotterName = nick;
+    if (city) this.profile.city = city;
+
+    await window.carDb.saveSpotterProfile(this.profile);
+    await window.carDb.setSetting('spotter_registered', true);
+
+    this.closeRegistrationModal();
+    this.renderProfile();
+    this.showToast(`Добро пожаловать, ${nick}! Приятного автоспоттинга! 🏎️`);
   }
 
   // =========================================================================
@@ -750,12 +961,17 @@ class CarDexApp {
   // =========================================================================
 
   openAddModal() {
+    this.editingCarId = null;
     this.tempMainPhoto = null;
     this.tempMainPhotoThumb = null;
     this.tempExtraPhotos = [];
 
     const form = document.getElementById('addCarForm');
     if (form) form.reset();
+
+    const modal = document.getElementById('addCarModal');
+    const modalTitle = modal ? modal.querySelector('.modal-title') : null;
+    if (modalTitle) modalTitle.textContent = '🏎️ Заспоттить автомобиль';
 
     // Default current datetime
     const now = new Date();
@@ -772,13 +988,79 @@ class CarDexApp {
     const extraRow = document.getElementById('extraPhotosPreviewRow');
     if (extraRow) extraRow.innerHTML = '';
 
+    if (modal) modal.classList.add('open');
+  }
+
+  async openEditModal(carId) {
+    const car = await window.carDb.getCar(carId);
+    if (!car) return;
+
+    this.editingCarId = carId;
+    this.tempMainPhoto = car.photo || null;
+    this.tempMainPhotoThumb = car.photoThumb || null;
+    this.tempExtraPhotos = Array.isArray(car.photos) ? [...car.photos] : [];
+
     const modal = document.getElementById('addCarModal');
+    const modalTitle = modal ? modal.querySelector('.modal-title') : null;
+    if (modalTitle) modalTitle.textContent = '✏️ Редактировать автомобиль';
+
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val !== undefined && val !== null ? val : '';
+    };
+
+    setVal('carBrandInput', car.brand);
+    setVal('carModelInput', car.model);
+    setVal('carGenerationInput', car.generation);
+    setVal('carCategorySelect', car.category || 'sport');
+    setVal('carYearInput', car.year);
+    setVal('carPowerInput', car.power);
+    setVal('carColorInput', car.color);
+    setVal('carTransmissionSelect', car.transmission || 'Робот / PDK');
+    setVal('carDrivetrainSelect', car.drivetrain || 'Задний (RWD)');
+    setVal('carPlateInput', car.plate);
+    setVal('carLocationInput', car.location);
+    setVal('carLatInput', car.lat);
+    setVal('carLngInput', car.lng);
+    setVal('carDateInput', car.date);
+    setVal('carRatingSelect', car.rating || 5);
+    setVal('carSoundInput', car.sound);
+    setVal('carNotesInput', car.notes);
+
+    // Photo preview
+    const previewImg = document.getElementById('mainPhotoPreviewImg');
+    const placeholder = document.getElementById('mainPhotoPlaceholder');
+    const photoSrc = car.photo || car.photoThumb;
+    if (photoSrc) {
+      if (previewImg) {
+        previewImg.src = photoSrc;
+        previewImg.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
+    } else {
+      if (previewImg) previewImg.style.display = 'none';
+      if (placeholder) placeholder.style.display = 'flex';
+    }
+
+    // Extra photos
+    const previewRow = document.getElementById('extraPhotosPreviewRow');
+    if (previewRow) {
+      previewRow.innerHTML = '';
+      this.tempExtraPhotos.forEach(p => {
+        const thumbEl = document.createElement('div');
+        thumbEl.className = 'extra-photo-thumb-pill';
+        thumbEl.innerHTML = `<img src="${p.thumb || p.data}" alt="Ракурс" />`;
+        previewRow.appendChild(thumbEl);
+      });
+    }
+
     if (modal) modal.classList.add('open');
   }
 
   closeAddModal() {
     const modal = document.getElementById('addCarModal');
     if (modal) modal.classList.remove('open');
+    this.editingCarId = null;
   }
 
   async handleMainPhotoSelect(e) {
@@ -885,33 +1167,67 @@ class CarDexApp {
     const sound = document.getElementById('carSoundInput').value.trim();
     const notes = document.getElementById('carNotesInput').value.trim();
 
-    const carData = {
-      brand,
-      model,
-      generation,
-      category,
-      year: year ? parseInt(year, 10) : null,
-      color,
-      plate,
-      power: power ? parseInt(power, 10) : null,
-      drivetrain,
-      transmission,
-      location,
-      lat,
-      lng,
-      date,
-      rating,
-      sound,
-      notes,
-      photo: this.tempMainPhoto || '',
-      photoThumb: this.tempMainPhotoThumb || '',
-      photos: this.tempExtraPhotos
-    };
+    if (this.editingCarId) {
+      const existing = await window.carDb.getCar(this.editingCarId);
+      const updatedCar = {
+        ...existing,
+        id: this.editingCarId,
+        brand,
+        model,
+        generation,
+        category,
+        year: year ? parseInt(year, 10) : null,
+        color,
+        plate,
+        power: power ? parseInt(power, 10) : null,
+        drivetrain,
+        transmission,
+        location,
+        lat,
+        lng,
+        date,
+        rating,
+        sound,
+        notes,
+        photo: this.tempMainPhoto || (existing ? existing.photo : ''),
+        photoThumb: this.tempMainPhotoThumb || (existing ? existing.photoThumb : ''),
+        photos: this.tempExtraPhotos.length ? this.tempExtraPhotos : (existing ? existing.photos : [])
+      };
 
-    await window.carDb.saveCar(carData);
-    this.closeAddModal();
-    await this.loadCars();
-    this.showToast(`Авто ${brand} ${model} добавлено в коллекцию!`);
+      await window.carDb.saveCar(updatedCar);
+      this.editingCarId = null;
+      this.closeAddModal();
+      await this.loadCars();
+      this.showToast(`Авто ${brand} ${model} обновлено!`);
+    } else {
+      const carData = {
+        brand,
+        model,
+        generation,
+        category,
+        year: year ? parseInt(year, 10) : null,
+        color,
+        plate,
+        power: power ? parseInt(power, 10) : null,
+        drivetrain,
+        transmission,
+        location,
+        lat,
+        lng,
+        date,
+        rating,
+        sound,
+        notes,
+        photo: this.tempMainPhoto || '',
+        photoThumb: this.tempMainPhotoThumb || '',
+        photos: this.tempExtraPhotos
+      };
+
+      await window.carDb.saveCar(carData);
+      this.closeAddModal();
+      await this.loadCars();
+      this.showToast(`Авто ${brand} ${model} добавлено в коллекцию!`);
+    }
   }
 
   // =========================================================================

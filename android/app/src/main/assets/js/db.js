@@ -37,7 +37,7 @@ class CarDexDB {
 
       req.onsuccess = async (e) => {
         this.db = e.target.result;
-        await this.seedDemoCarsIfEmpty();
+        await this.cleanupDemoCars();
         resolve(this.db);
       };
 
@@ -57,112 +57,16 @@ class CarDexDB {
     return 'Ragazzo_15';
   }
 
-  // --- Seed Demo Cars with Realistic Data ---
-  async seedDemoCarsIfEmpty() {
-    const list = await this.getAllCars();
-    if (list.length === 0) {
-      const demoSpots = [
-        {
-          id: 'car-demo-porsche-911',
-          brand: 'Porsche',
-          model: '911 GT3 RS',
-          generation: '992',
-          year: 2023,
-          category: 'supercar',
-          color: 'Lava Orange',
-          plate: 'Х 911 ТР 799',
-          power: 525,
-          drivetrain: 'RWD',
-          transmission: 'PDK (Робот)',
-          location: 'Москва, Патриаршие пруды',
-          lat: 55.7645,
-          lng: 37.5925,
-          date: '2026-10-18T16:30',
-          rating: 5,
-          sound: 'Спортивный рев атмо V6 (9000 об/мин)',
-          notes: 'Огромное антикрыло с DRS, магниевые диски, углепластиковый капот. Звук на переключениях просто пушка!',
-          photo: '',
-          photoThumb: '',
-          photos: [],
-          createdAt: new Date(Date.now() - 3600000 * 24 * 2).toISOString()
-        },
-        {
-          id: 'car-demo-nissan-skyline',
-          brand: 'Nissan',
-          model: 'Skyline GT-R',
-          generation: 'BNR34 V-Spec II',
-          year: 2001,
-          category: 'jdm',
-          color: 'Bayside Blue',
-          plate: 'JDM 034 R34',
-          power: 450,
-          drivetrain: 'AWD (ATTESA E-TS)',
-          transmission: '6-МКПП Getrag',
-          location: 'Санкт-Петербург, Севкабель Порт',
-          lat: 59.9242,
-          lng: 30.2412,
-          date: '2026-10-15T19:15',
-          rating: 5,
-          sound: 'Прямоток HKS, сочный бас RB26DETT + пшики блоу-оффа',
-          notes: 'Легенда в музейном сохране! Диски Volk Racing TE37 Bronze, оригинальный дисплей MFD в торпеде работает.',
-          photo: '',
-          photoThumb: '',
-          photos: [],
-          createdAt: new Date(Date.now() - 3600000 * 24 * 5).toISOString()
-        },
-        {
-          id: 'car-demo-bmw-m5',
-          brand: 'BMW',
-          model: 'M5',
-          generation: 'E39',
-          year: 2002,
-          category: 'sport',
-          color: 'Carbon Black Metallic',
-          plate: 'О 005 ММ 77',
-          power: 400,
-          drivetrain: 'RWD',
-          transmission: '6-МКПП',
-          location: 'Москва, Воробьевы горы (Смотра)',
-          lat: 55.7101,
-          lng: 37.5422,
-          date: '2026-10-12T21:40',
-          rating: 4,
-          sound: 'Басовитый V8 S62 без катализаторов с отстрелами',
-          notes: 'Культовая М-ка на оригинальных разношироких дисках Style 65. Состояние кузова как с завода.',
-          photo: '',
-          photoThumb: '',
-          photos: [],
-          createdAt: new Date(Date.now() - 3600000 * 24 * 8).toISOString()
-        },
-        {
-          id: 'car-demo-dodge-charger',
-          brand: 'Dodge',
-          model: 'Charger R/T 440',
-          generation: 'B-Body 1969',
-          year: 1969,
-          category: 'muscle',
-          color: 'Plum Crazy Purple',
-          plate: 'V8 1969 RT',
-          power: 375,
-          drivetrain: 'RWD',
-          transmission: 'TorqueFlite 727',
-          location: 'Москва, ВДНХ',
-          lat: 55.8263,
-          lng: 37.6377,
-          date: '2026-10-08T14:20',
-          rating: 5,
-          sound: 'Глубокий рокот настоящего американского Big-Block',
-          notes: 'Скрытые фары Hideaway, задняя белая полоса Bumblebee, невероятный хардтоп силуэт.',
-          photo: '',
-          photoThumb: '',
-          photos: [],
-          createdAt: new Date(Date.now() - 3600000 * 24 * 12).toISOString()
-        }
-      ];
-
+  // Purge any pre-loaded demo cars so user starts with a clean collection
+  async cleanupDemoCars() {
+    try {
+      const list = await this.getAllCars();
+      const demoSpots = list.filter(c => c.id && c.id.startsWith('car-demo-'));
       for (const car of demoSpots) {
-        await this.saveCar(car);
+        await this.deleteCar(car.id);
       }
+    } catch (e) {
+      console.warn('Demo cleanup note:', e);
     }
   }
 

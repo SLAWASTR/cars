@@ -511,24 +511,199 @@ a {
 /* Empty State */
 .gallery-empty-state {
   text-align: center;
-  padding: 48px 20px;
+  padding: 56px 20px;
   color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-card);
+  border-radius: var(--radius-lg);
+  margin: 16px 0;
 }
 
 .empty-icon {
-  font-size: 3rem;
-  margin-bottom: 12px;
+  font-size: 3.5rem;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 4px 12px rgba(255,255,255,0.1));
 }
 
 .empty-title {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: var(--text-primary);
 }
 
 .empty-sub {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
+  max-width: 320px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.btn-empty-add-car {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #FFFFFF;
+  color: #000000;
+  font-size: 0.95rem;
+  font-weight: 900;
+  padding: 14px 26px;
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.28);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  margin-top: 8px;
+}
+
+.btn-empty-add-car:active {
+  transform: scale(0.96);
+}
+
+/* Quick Actions Sheet (Long-Press Context Menu) */
+.quick-actions-sheet {
+  max-height: 85vh;
+  padding-bottom: calc(var(--safe-bottom) + 16px);
+}
+
+.quick-car-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.quick-car-thumb {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+  flex-shrink: 0;
+}
+
+.quick-car-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.quick-car-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quick-car-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.quick-action-item:active {
+  background: var(--bg-subtle);
+  transform: scale(0.98);
+}
+
+.quick-action-item.danger {
+  color: #FF4757;
+  border-color: rgba(255, 71, 87, 0.3);
+  background: rgba(255, 71, 87, 0.08);
+}
+
+.quick-action-item.danger:active {
+  background: rgba(255, 71, 87, 0.18);
+}
+
+.quick-action-icon {
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+}
+
+.quick-action-cancel {
   margin-top: 4px;
+  justify-content: center;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+/* Onboarding Registration Modal */
+.onboarding-sheet {
+  text-align: center;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 28px 22px calc(var(--safe-bottom) + 24px) 22px;
+}
+
+.onboarding-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  border: 2px solid var(--border-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.12);
+}
+
+.onboarding-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.onboarding-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 20px;
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
 }
 
 /* =========================================================================
