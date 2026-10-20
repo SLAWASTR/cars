@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Автотека (CarDex) — Премиум Коллекция Автоспоттинга</title>
+  
+  <meta name="theme-color" content="#000000" id="themeColorMeta">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/app-icon.svg">
+  
+  <!-- Leaflet Map CSS (Offline Vendor) -->
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  
+  <!-- Main Carbon AMOLED Design System -->
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="theme-amoled">
+
+  <!-- =========================================================================
+       APP HEADER
+       ========================================================================= -->
+  <header class="app-header">
+    <div class="brand-container" onclick="window.app.switchTab('garage')">
+      <img src="icons/app-icon.svg" alt="Автотека" class="brand-logo-img">
+      <div class="brand-text-block">
+        <div class="brand-title-wrap">
+          <span class="brand-name">Автотека</span>
+          <span class="brand-version-badge">1.0</span>
+        </div>
+        <span class="brand-subtitle">Автоспоттинг &amp; Личный гараж</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="header-user-pill" onclick="window.app.switchTab('profile')" title="Профиль споттера">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span id="headerSpotterDisplay">Ragazzo_15</span>
+      </button>
+
+      <button type="button" class="header-icon-btn" onclick="window.app.switchTab('themes')" title="Темы оформления">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a10 10 0 0 1 0 20v-20z"></path>
+        </svg>
+      </button>
+
+      <button type="button" class="header-icon-btn" onclick="window.app.exportBackup()" title="Резервная копия базы">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       TAB 1: ГАРАЖ И КОЛЛЕКЦИЯ СПОТОВ (GARAGE SCREEN)
+       ========================================================================= -->
+  <main id="garageScreen" class="tab-screen active">
+    <!-- Search Bar -->
+    <div class="search-box-wrap">
+      <div class="search-input-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="search" id="carSearchInput" placeholder="Поиск по марке, модели, кузову, номеру, городу..." autocomplete="off">
+      </div>
+    </div>
+
+    <!-- Category Filter Chips -->
+    <div class="filter-chips-scroll" id="categoryFilterChips">
+      <button type="button" class="filter-chip active" data-category="all">Все категории</button>
+      <button type="button" class="filter-chip" data-category="supercar">🏎️ Суперкары</button>
+      <button type="button" class="filter-chip" data-category="jdm">🔰 JDM Легенды</button>
+      <button type="button" class="filter-chip" data-category="muscle">🦅 Muscle Cars</button>
+      <button type="button" class="filter-chip" data-category="retro">🏛️ Ретро / Олдтаймеры</button>
+      <button type="button" class="filter-chip" data-category="tuning">🛠️ Тюнинг / Корчи</button>
+      <button type="button" class="filter-chip" data-category="sport">⚡ Спорткупе</button>
+      <button type="button" class="filter-chip" data-category="luxury">💼 Люкс / Премиум</button>
+      <button type="button" class="filter-chip" data-category="offroad">🚙 4x4 Внедорожники</button>
+      <button type="button" class="filter-chip" data-category="rare_daily">🚗 Необычные споты</button>
+    </div>
+
+    <!-- Controls Row: Brand filter, sorting, layout -->
+    <div class="gallery-controls-bar">
+      <div class="control-left-group">
+        <select id="filterBrandSelect" class="compact-select" title="Фильтр по марке">
+          <option value="all">Все марки</option>
+        </select>
+        <select id="sortSelect" class="compact-select" title="Сортировка">
+          <option value="newest">Новые сначала</option>
+          <option value="power">По мощности (л.с.)</option>
+          <option value="rating">По рейтингу ★</option>
+          <option value="brand">По марке (А-Я)</option>
+        </select>
+      </div>
+
+      <div class="control-right-group">
+        <button type="button" id="layoutToggleBtn" class="btn-tool-icon" title="Сменить раскладку (Сетка / Карточки)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="gallery-meta-count" id="carsCountSub">Найдено спотов: 0</div>
+
+    <!-- Cars Gallery Grid -->
+    <div id="carsGalleryGrid" class="cars-gallery-container layout-grid"></div>
+  </main>
+
+  <!-- =========================================================================
+       TAB 2: ИНТЕРАКТИВНАЯ КАРТА СПОТОВ (MAP SCREEN)
+       ========================================================================= -->
+  <section id="mapScreen" class="tab-screen">
+    <div class="screen-header-row">
+      <div>
+        <h2 class="screen-title">🗺️ Карта автоспотов</h2>
+        <div class="screen-subtitle">Все зафиксированные автомобили на карте</div>
+      </div>
+      <button type="button" class="btn-primary-compact" onclick="window.app.openAddModal()">
+        <span>➕</span> Добавить спот
+      </button>
+    </div>
+
+    <div id="carsMapContainer" class="cars-map-wrapper"></div>
+  </section>
+
+  <!-- =========================================================================
+       TAB 3: ТЕМЫ ОФОРМЛЕНИЯ (THEMES SCREEN)
+       ========================================================================= -->
+  <section id="themesScreen" class="tab-screen">
+    <div class="screen-header-row">
+      <div>
+        <h2 class="screen-title">🎨 Темы оформления</h2>
+        <div class="screen-subtitle">AMOLED, светлая или своя кастомная палитра</div>
+      </div>
+    </div>
+
+    <!-- 3 Core Theme Selector -->
+    <div class="theme-tabs-row">
+      <button type="button" class="theme-tab-btn active" data-theme="amoled" onclick="window.themeManager.setTheme('amoled')">
+        <span class="theme-tab-dot amoled"></span>
+        <span>AMOLED Тёмная</span>
+      </button>
+      <button type="button" class="theme-tab-btn" data-theme="light" onclick="window.themeManager.setTheme('light')">
+        <span class="theme-tab-dot light"></span>
+        <span>Светлая</span>
+      </button>
+      <button type="button" class="theme-tab-btn" data-theme="custom" onclick="window.themeManager.setTheme('custom')">
+        <span class="theme-tab-dot custom"></span>
+        <span>Своя палитра</span>
+      </button>
+    </div>
+
+    <!-- Custom Theme Editor Panel -->
+    <div id="customThemeEditorPanel" class="custom-theme-editor" style="display:none;">
+      <div class="custom-card-header">
+        <h3 class="custom-card-title">Настройка автомобильной палитры</h3>
+        <p class="custom-card-desc">Выберите 4 основных цвета интерфейса или примените легендарный автопресет:</p>
+      </div>
+
+      <!-- Quick Automotive Presets -->
+      <div class="presets-wrap">
+        <span class="presets-label">Готовые пресеты:</span>
+        <div class="preset-chips-list">
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('rosso_corsa')">🏎️ Rosso Corsa</button>
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('lava_orange')">🔥 Lava Orange</button>
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('wrx_blue')">⚡ WRX Blue</button>
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('racing_green')">🏁 British Racing Green</button>
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('modena_yellow')">🟡 Giallo Modena</button>
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('midnight_purple')">🟣 Midnight Purple</button>
+          <button type="button" class="preset-chip" onclick="window.themeManager.applyPreset('monochrome')">⚪ Absolute Pure White</button>
+        </div>
+      </div>
+
+      <!-- 4 Color Pickers -->
+      <div class="color-pickers-grid">
+        <div class="color-picker-box">
+          <label class="color-label" for="pickerBgMain">
+            <span class="color-title">1. Цвет фона</span>
+            <span class="color-sub">Основная подложка экрана</span>
+          </label>
+          <input type="color" id="pickerBgMain" value="#000000">
+        </div>
+
+        <div class="color-picker-box">
+          <label class="color-label" for="pickerBgSurface">
+            <span class="color-title">2. Цвет карточек</span>
+            <span class="color-sub">Поверхности, панели, шапка</span>
+          </label>
+          <input type="color" id="pickerBgSurface" value="#0A0A0A">
+        </div>
+
+        <div class="color-picker-box">
+          <label class="color-label" for="pickerAccent">
+            <span class="color-title">3. Акцентный цвет</span>
+            <span class="color-sub">Кнопки, бейджи, спидометры</span>
+          </label>
+          <input type="color" id="pickerAccent" value="#FFFFFF">
+        </div>
+
+        <div class="color-picker-box">
+          <label class="color-label" for="pickerText">
+            <span class="color-title">4. Цвет текста</span>
+            <span class="color-sub">Заголовки и названия моделей</span>
+          </label>
+          <input type="color" id="pickerText" value="#FFFFFF">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       TAB 4: ПРОФИЛЬ АВТОСПОТТЕРА (PROFILE SCREEN)
+       ========================================================================= -->
+  <section id="profileScreen" class="tab-screen">
+    <!-- Hidden Inputs for Avatar and Personal Garage -->
+    <input type="file" id="profileAvatarFileInput" accept="image/*" style="display:none">
+    <input type="file" id="personalGarageFileInput" accept="image/*" style="display:none">
+
+    <!-- Spotter Profile Hero Card -->
+    <div class="profile-hero-card">
+      <div class="profile-hero-top">
+        <div class="profile-avatar-wrap" id="profileAvatarContainer" onclick="window.app.triggerAvatarUpload()" title="Нажмите, чтобы сменить аватар">
+          <svg id="profileAvatarFallback" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <img id="profileAvatarImg" class="profile-avatar-img" alt="Аватар споттера">
+          <div class="profile-avatar-camera-btn">📷</div>
+        </div>
+        <div class="profile-info-block">
+          <div class="profile-name-row">
+            <h2 id="profileSpotterDisplay" class="profile-username">Ragazzo_15</h2>
+            <button type="button" class="btn-profile-edit" onclick="window.app.openProfileEditModal()" title="Редактировать профиль и ссылки">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="profileBioDisplay" class="profile-bio-text">Охотник за редкими спорткарами, JDM легендами и тюнинг-проектами 🏎️💨</div>
+        </div>
+      </div>
+
+      <!-- Social Links Row (Drive2, Telegram, YouTube, VK, Website) -->
+      <div class="profile-links-row" id="profileSocialLinksList">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="profile-stats-grid">
+      <div class="profile-stat-box">
+        <div id="statTotalCars" class="profile-stat-val">0</div>
+        <div class="profile-stat-lbl">Всего спотов</div>
+      </div>
+      <div class="profile-stat-box">
+        <div id="statTotalBrands" class="profile-stat-val">0</div>
+        <div class="profile-stat-lbl">Марок</div>
+      </div>
+      <div class="profile-stat-box">
+        <div id="statSupercars" class="profile-stat-val">0</div>
+        <div class="profile-stat-lbl">Суперкаров</div>
+      </div>
+      <div class="profile-stat-box">
+        <div id="statTotalHp" class="profile-stat-val">0</div>
+        <div class="profile-stat-lbl">Сумм. л.с.</div>
+      </div>
+      <div class="profile-stat-box">
+        <div id="statPersonalGarage" class="profile-stat-val">0</div>
+        <div class="profile-stat-lbl">В моем гараже</div>
+      </div>
+    </div>
+
+    <!-- Personal Garage Section (Личный гараж владельца) -->
+    <div class="personal-garage-card">
+      <div class="personal-garage-header">
+        <div class="personal-garage-title-wrap">
+          <span class="personal-garage-title">🏎️ Мой личный гараж</span>
+          <span class="personal-garage-badge" id="personalGarageCount">0</span>
+        </div>
+        <button type="button" class="btn-primary-compact" onclick="window.app.triggerPersonalGarageUpload()">
+          <span>➕</span> Добавить в гараж
+        </button>
+      </div>
+      <div id="personalGarageGrid" class="personal-garage-grid">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- Donate Section (Поддержать разработчика / авторов) -->
+    <div class="donate-hero-card">
+      <div class="donate-header-row">
+        <div class="donate-icon-box">☕</div>
+        <div>
+          <div class="donate-title">Поддержать авторов и развитие</div>
+          <div class="donate-subtitle">Автотека создается независимо и с любовью к автомобильной культуре. Если вам нравится проект, вы можете задонатить через Ozon Банк / СБП:</div>
+        </div>
+      </div>
+      <a href="https://finance.ozon.ru/apps/sbp/ozonbankpay/01a155d9-e962-7ffe-aa0c-ac329362226c" target="_blank" class="btn-donate-ozon">
+        <span>💖</span> Задонатить через Ozon Банк / СБП
+      </a>
+    </div>
+
+    <!-- Creators Card (Создатели приложения) -->
+    <div class="creators-card">
+      <div class="creators-header">👥 Создатели приложения</div>
+      <div class="creator-item">
+        <div class="creator-left">
+          <div class="creator-avatar-badge">🏎️</div>
+          <div>
+            <div class="creator-name">Ragazzo_15 (Веб) / Ваня (АПК)</div>
+            <div class="creator-role">Идея, автоспоттинг, автоэксперт &amp; концепция</div>
+          </div>
+        </div>
+      </div>
+      <div class="creator-item">
+        <div class="creator-left">
+          <div class="creator-avatar-badge">⚡</div>
+          <div>
+            <div class="creator-name">slawastr</div>
+            <div class="creator-role">Разработка, архитектура &amp; нативная сборка</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 10px; text-align: center;">
+        <a href="https://github.com/SLAWASTR/cars" target="_blank" class="profile-link-chip web-chip" style="display:inline-flex;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>Репозиторий на GitHub: SLAWASTR/cars</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Settings Group: Backup & Export -->
+    <div class="profile-section-card">
+      <div class="profile-card-header">
+        <span class="profile-card-title">Резервное копирование и экспорт</span>
+      </div>
+      
+      <div class="profile-setting-row" onclick="window.app.exportBackup()">
+        <div class="setting-row-left">
+          <div class="setting-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </div>
+          <div>
+            <div class="setting-title">Экспорт базы спотов (JSON)</div>
+            <div class="setting-desc">Сохранить все автомобили, фото, координаты и личный гараж</div>
+          </div>
+        </div>
+        <span class="setting-action-arrow">›</span>
+      </div>
+
+      <div class="profile-setting-row" onclick="window.app.importBackup()">
+        <div class="setting-row-left">
+          <div class="setting-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+          </div>
+          <div>
+            <div class="setting-title">Импорт базы спотов</div>
+            <div class="setting-desc">Восстановить коллекцию из файла резервной копии</div>
+          </div>
+        </div>
+        <span class="setting-action-arrow">›</span>
+      </div>
+    </div>
+
+    <!-- App Credits -->
+    <div class="profile-footer-info">
+      <div>Автотека (CarDex) • Версия 1.0.0 (Absolute Carbon AMOLED)</div>
+      <div>Сделано для <b>Ragazzo_15 / Ваня</b> &amp; <b>slawastr</b> • Премиум автоспоттинг</div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       BOTTOM NAVIGATION (Balanced 2 - FAB - 2)
+       ========================================================================= -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="garage">
+      <div class="nav-icon-wrap">
+        <svg class="nav-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 13L5 4h14l2 9"></path>
+          <path d="M3 13h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z"></path>
+          <circle cx="7.5" cy="17.5" r="1.5"></circle>
+          <circle cx="16.5" cy="17.5" r="1.5"></circle>
+        </svg>
+      </div>
+      <span class="nav-label">Гараж</span>
+    </button>
+
+    <button class="nav-item" data-tab="map">
+      <div class="nav-icon-wrap">
+        <svg class="nav-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+          <line x1="8" y1="2" x2="8" y2="18"></line>
+          <line x1="16" y1="6" x2="16" y2="22"></line>
+        </svg>
+      </div>
+      <span class="nav-label">Карта</span>
+    </button>
+
+    <button class="fab-center-btn" id="fabAddCar" title="Заспоттить автомобиль">
+      <div class="fab-circle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </div>
+      <span class="fab-label">Заспоттить</span>
+    </button>
+
+    <button class="nav-item" data-tab="themes">
+      <div class="nav-icon-wrap">
+        <svg class="nav-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 2a10 10 0 0 1 0 20v-20z"></path>
+        </svg>
+      </div>
+      <span class="nav-label">Темы</span>
+    </button>
+
+    <button class="nav-item" data-tab="profile">
+      <div class="nav-icon-wrap">
+        <svg class="nav-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <span class="nav-label">Профиль</span>
+    </button>
+  </nav>
+
+  <!-- =========================================================================
+       MODAL 1: ДОБАВИТЬ АВТОСПОТ (ADD CAR MODAL)
+       ========================================================================= -->
+  <div id="addCarModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 class="modal-title">🏎️ Заспоттить автомобиль</h3>
+        <button type="button" class="modal-close-btn" onclick="window.app.closeAddModal()">✕</button>
+      </div>
+
+      <form id="addCarForm" class="modal-form-flow" onsubmit="window.app.handleSaveCar(event)">
+        <!-- Photo Upload Box with EXIF & GPS reading -->
+        <div class="form-group">
+          <label class="form-label">Главная фотография автомобиля *</label>
+          <div class="main-photo-upload-box" id="mainPhotoUploadBox">
+            <input type="file" id="mainPhotoInput" accept="image/*" style="display:none">
+            <div class="upload-placeholder" id="mainPhotoPlaceholder">
+              <span class="upload-icon">📸</span>
+              <span class="upload-text">Нажмите, чтобы сделать или выбрать фото</span>
+              <span class="upload-hint">EXIF-данные: дата и GPS считаются автоматически</span>
+            </div>
+            <img id="mainPhotoPreviewImg" class="main-photo-preview-img" alt="Предпросмотр">
+          </div>
+        </div>
+
+        <!-- Brand & Model -->
+        <div class="form-row-2col">
+          <div class="form-group">
+            <label class="form-label" for="carBrandInput">Марка *</label>
+            <input type="text" id="carBrandInput" class="form-input" placeholder="Porsche, BMW, Nissan..." required list="brandSuggestionsList">
+            <datalist id="brandSuggestionsList">
+              <option value="Porsche">
+              <option value="Ferrari">
+              <option value="Lamborghini">
+              <option value="BMW">
+              <option value="Mercedes-Benz">
+              <option value="Audi">
+              <option value="Nissan">
+              <option value="Toyota">
+              <option value="Subaru">
+              <option value="Mazda">
+              <option value="Dodge">
+              <option value="Ford">
+              <option value="Chevrolet">
+              <option value="Aston Martin">
+              <option value="McLaren">
+              <option value="Rolls-Royce">
+              <option value="Bentley">
+              <option value="Lada">
+              <option value="ВАЗ">
+              <option value="ГАЗ">
+              <option value="Москвич">
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="carModelInput">Модель *</label>
+            <input type="text" id="carModelInput" class="form-input" placeholder="911 GT3 RS, Skyline GT-R..." required>
+          </div>
+        </div>
+
+        <!-- Generation & Category -->
+        <div class="form-row-2col">
+          <div class="form-group">
+            <label class="form-label" for="carGenerationInput">Кузов / Поколение</label>
+            <input type="text" id="carGenerationInput" class="form-input" placeholder="992, R34, E46, W204...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="carCategorySelect">Категория</label>
+            <select id="carCategorySelect" class="form-select">
+              <option value="supercar">🏎️ Суперкар</option>
+              <option value="jdm">🔰 JDM Легенда</option>
+              <option value="muscle">🦅 Muscle Car</option>
+              <option value="retro">🏛️ Ретро / Олдтаймер</option>
+              <option value="tuning">🛠️ Тюнинг / Корч</option>
+              <option value="sport" selected>⚡ Спорткупе</option>
+              <option value="luxury">💼 Люкс / Премиум</option>
+              <option value="offroad">🚙 Внедорожник 4x4</option>
+              <option value="rare_daily">🚗 Необычный спот</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Year, Power, Color -->
+        <div class="form-row-3col">
+          <div class="form-group">
+            <label class="form-label" for="carYearInput">Год выпуска</label>
+            <input type="number" id="carYearInput" class="form-input" placeholder="2023" min="1900" max="2030">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carPowerInput">Мощность (л.с.)</label>
+            <input type="number" id="carPowerInput" class="form-input" placeholder="525" min="10" max="3000">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carColorInput">Цвет</label>
+            <input type="text" id="carColorInput" class="form-input" placeholder="Белый, Красный...">
+          </div>
+        </div>
+
+        <!-- Transmission, Drivetrain & License Plate -->
+        <div class="form-row-3col">
+          <div class="form-group">
+            <label class="form-label" for="carTransmissionSelect">КПП</label>
+            <select id="carTransmissionSelect" class="form-select">
+              <option value="Робот / PDK">Робот / PDK / DSG</option>
+              <option value="Автомат (АКПП)">Автомат (АКПП)</option>
+              <option value="Механика (МКПП)">Механика (МКПП)</option>
+              <option value="Секвентальная">Секвентальная</option>
+              <option value="Редуктор (Электро)">Электро / Прямой</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carDrivetrainSelect">Привод</label>
+            <select id="carDrivetrainSelect" class="form-select">
+              <option value="Задний (RWD)">Задний (RWD)</option>
+              <option value="Полный (AWD/4WD)">Полный (AWD/4WD)</option>
+              <option value="Передний (FWD)">Передний (FWD)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="carPlateInput">Госномер</label>
+            <input type="text" id="carPlateInput" class="form-input" placeholder="А 001 АА 77">
+          </div>
+        </div>
+
+        <!-- Location & GPS -->
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" for="carLocationInput">Место спота / Город</label>
+            <button type="button" id="btnDetectGps" class="btn-detect-gps" onclick="window.app.autoDetectLocationInForm()">📍 Мое место</button>
+          </div>
+          <input type="text" id="carLocationInput" class="form-input" placeholder="Москва, Патриаршие пруды / Сочи...">
+          
+          <div class="form-row-2col" style="margin-top:6px;">
+            <input type="number" step="any" id="carLatInput" class="form-input" placeholder="Широта (Lat)">
+            <input type="number" step="any" id="carLngInput" class="form-input" placeholder="Долгота (Lng)">
+          </div>
+        </div>
+
+        <!-- Date & Rating -->
+        <div class="form-row-2col">
+          <div class="form-group">
+            <label class="form-label" for="carDateInput">Дата и время спота</label>
+            <input type="datetime-local" id="carDateInput" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="carRatingSelect">Оценка редкости спота</label>
+            <select id="carRatingSelect" class="form-select">
+              <option value="5">★★★★★ Легендарный единорог</option>
+              <option value="4" selected>★★★★☆ Очень редкий спот</option>
+              <option value="3">★★★☆☆ Отличная тачка</option>
+              <option value="2">★★☆☆☆ Приятный городской спорт</option>
+              <option value="1">★☆☆☆☆ Обычный сток</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Exhaust Sound & Notes -->
+        <div class="form-group">
+          <label class="form-label" for="carSoundInput">Звук выхлопа / Конфиг</label>
+          <input type="text" id="carSoundInput" class="form-input" placeholder="Прямоток Akrapovic, громкие отстрелы, тихий сток...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="carNotesInput">Заметки и особенности</label>
+          <textarea id="carNotesInput" class="form-textarea" rows="2" placeholder="Особый обвес, кованые диски BBS, карбоновый спойлер..."></textarea>
+        </div>
+
+        <!-- Additional Photos (Ракурсы) -->
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label">Дополнительные фото (ракурсы)</label>
+            <button type="button" class="btn-text-action" onclick="document.getElementById('extraPhotosInput').click()">➕ Выбрать фото</button>
+          </div>
+          <input type="file" id="extraPhotosInput" accept="image/*" multiple style="display:none">
+          <div id="extraPhotosPreviewRow" class="extra-photos-row"></div>
+        </div>
+
+        <!-- Submit & Cancel -->
+        <div class="modal-form-actions">
+          <button type="button" class="btn-secondary" onclick="window.app.closeAddModal()">Отмена</button>
+          <button type="submit" class="btn-primary"><span>💾</span> Сохранить спот</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 2: ПОДРОБНОСТИ АВТОМОБИЛЯ (DETAIL SHEET)
+       ========================================================================= -->
+  <div id="carDetailModal" class="modal-overlay">
+    <div class="modal-sheet detail-sheet">
+      <div class="modal-header">
+        <span class="detail-badge" id="detailCategoryBadge">🏎️ Суперкар</span>
+        <button type="button" class="modal-close-btn" onclick="window.app.closeDetailModal()">✕</button>
+      </div>
+
+      <div class="detail-sheet-body">
+        <!-- Hero Photo -->
+        <div class="detail-photo-wrapper">
+          <img id="detailHeroImg" class="detail-hero-img" alt="Автомобиль">
+          <div class="detail-photo-overlay-badges">
+            <span id="detailRatingStars" class="detail-badge">★★★★★</span>
+          </div>
+        </div>
+
+        <!-- Title & Sub -->
+        <div>
+          <h2 id="detailTitle" class="detail-car-name">Porsche 911 GT3 RS</h2>
+          <div id="detailGeneration" class="detail-generation">Кузов: 992</div>
+        </div>
+
+        <!-- Specs Grid -->
+        <div class="detail-specs-card">
+          <div class="detail-spec-item">
+            <span class="detail-spec-title">Мощность</span>
+            <span id="detailPower" class="detail-spec-val">525 л.с.</span>
+          </div>
+          <div class="detail-spec-item">
+            <span class="detail-spec-title">Привод</span>
+            <span id="detailDrivetrain" class="detail-spec-val">RWD</span>
+          </div>
+          <div class="detail-spec-item">
+            <span class="detail-spec-title">КПП</span>
+            <span id="detailTransmission" class="detail-spec-val">PDK 7-ст</span>
+          </div>
+        </div>
+
+        <!-- License Plate -->
+        <div class="detail-info-row" style="display:none;">
+          <span class="detail-info-label">Госномер:</span>
+          <span id="detailPlate" class="plate-badge-display">🇷🇺 А 001 АА 77</span>
+        </div>
+
+        <!-- Location with Map Button -->
+        <div class="detail-info-row">
+          <span class="detail-info-label">Локация спота:</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="detailLocation" class="detail-info-text">Москва, Патриаршие пруды</span>
+            <button type="button" id="detailMapBtn" class="btn-location-map">🗺️ На карте</button>
+          </div>
+        </div>
+
+        <!-- Date -->
+        <div class="detail-info-row">
+          <span class="detail-info-label">Дата фиксации:</span>
+          <span id="detailDate" class="detail-info-text">20 октября 2026</span>
+        </div>
+
+        <!-- Exhaust Sound -->
+        <div class="detail-info-row" style="display:none;">
+          <span class="detail-info-label">Звук / Выхлоп:</span>
+          <span id="detailSound" class="detail-info-text">Akrapovic Titanium</span>
+        </div>
+
+        <!-- Notes -->
+        <div class="detail-info-row" style="display:none;">
+          <span class="detail-info-label">Особенности:</span>
+          <div id="detailNotes" class="detail-notes-box"></div>
+        </div>
+
+        <!-- Extra Photos Gallery -->
+        <div class="detail-photos-section">
+          <div class="detail-section-header">
+            <span class="detail-section-title">📸 Все ракурсы автомобиля</span>
+            <button type="button" class="btn-text-action" onclick="window.app.addExtraPhotoToCurrentCar()">➕ Добавить ракурс</button>
+          </div>
+          <div id="detailExtraPhotosRow" class="extra-photos-row"></div>
+        </div>
+
+        <!-- Action Buttons: Gran Turismo Trading Card & Telegram Share -->
+        <div class="detail-action-buttons">
+          <button type="button" class="btn-action-card-gt" onclick="window.app.generateTradingCard()">
+            <span>🏎️</span> Создать GT Карточку спота (PNG)
+          </button>
+          <button type="button" class="btn-action-telegram" onclick="window.app.shareCarTelegram()">
+            <span>✈️</span> Поделиться спотом в Telegram
+          </button>
+        </div>
+
+        <!-- Danger Row -->
+        <div class="detail-danger-row">
+          <button type="button" class="btn-danger-outline" onclick="window.app.deleteCar()">
+            <span>🗑️</span> Удалить спот
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 3: РЕДАКТИРОВАНИЕ ПРОФИЛЯ СПОТТЕРА (PROFILE EDIT MODAL)
+       ========================================================================= -->
+  <div id="profileEditModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Редактировать профиль</h3>
+        <button type="button" class="modal-close-btn" onclick="window.app.closeProfileEditModal()">✕</button>
+      </div>
+
+      <div class="modal-form-flow">
+        <div class="form-group">
+          <label class="form-label" for="editProfileNick">Никнейм споттера *</label>
+          <input type="text" id="editProfileNick" class="form-input" placeholder="Ragazzo_15">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editProfileBio">Статус / Биография</label>
+          <textarea id="editProfileBio" class="form-textarea" rows="2" placeholder="Охотник за редкими спорткарами..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editProfileDrive2">Профиль Drive2</label>
+          <input type="text" id="editProfileDrive2" class="form-input" placeholder="username или ссылка">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editProfileTg">Telegram канал / контакт</label>
+          <input type="text" id="editProfileTg" class="form-input" placeholder="@ragazzo_15 или t.me/...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editProfileYT">YouTube канал</label>
+          <input type="text" id="editProfileYT" class="form-input" placeholder="@channel или ссылка">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editProfileVK">ВКонтакте</label>
+          <input type="text" id="editProfileVK" class="form-input" placeholder="vk.com/...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editProfileWeb">Личный сайт / Блог</label>
+          <input type="text" id="editProfileWeb" class="form-input" placeholder="https://...">
+        </div>
+
+        <div class="modal-form-actions">
+          <button type="button" class="btn-secondary" onclick="window.app.closeProfileEditModal()">Отмена</button>
+          <button type="button" class="btn-primary" onclick="window.app.saveProfileFromModal()"><span>💾</span> Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 4: FULLSCREEN PHOTO VIEWER
+       ========================================================================= -->
+  <div id="fullPhotoViewerModal" class="full-viewer-overlay" onclick="window.app.closeFullViewer()">
+    <div class="full-viewer-toolbar" onclick="event.stopPropagation()">
+      <button type="button" class="full-viewer-btn" onclick="window.app.downloadCurrentViewerImage()" title="Сохранить фото">💾 Сохранить</button>
+      <button type="button" id="btnDeleteViewerPersonalGarage" class="full-viewer-btn btn-danger" style="display:none;" onclick="window.app.deleteCurrentPersonalGarageFromViewer()" title="Удалить из гаража">🗑️ Удалить</button>
+      <button type="button" class="full-viewer-btn" onclick="window.app.closeFullViewer()" title="Закрыть">✕</button>
+    </div>
+    <div class="full-viewer-content" onclick="event.stopPropagation()">
+      <img id="fullViewerImg" class="full-viewer-img" alt="Полноэкранный просмотр">
+    </div>
+  </div>
+
+  <!-- Toast Notice -->
+  <div id="cardexToastNotice" class="toast-notice"></div>
+
+  <!-- Scripts -->
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
